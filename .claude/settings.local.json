@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Write",
+      "Edit",
+      "Bash(pytest*)",
+      "Bash(python*)",
+      "Bash(sphinx-build*)",
+      "Bash(make*)",
+      "Bash(coverage*)",
+      "Bash(find*)",
+      "Bash(ls*)",
+      "Bash(cat*)",
+      "Bash(python -m pytest test/unittest/ -q)"
+    ]
+  }
+}
