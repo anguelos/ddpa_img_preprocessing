@@ -19,7 +19,7 @@ def process_charter(charter, binarizer, resolution_estimator, recto_selector, ar
 
     ranked = recto_selector(str(charter.charter_dir))
     if args.verbose:
-        print(f"Ranked images for {charter.charter_dir}: {ranked}")
+        print(f"Ranked images for {charter.charter_dir}: {ranked}", file=sys.stderr)
 
     for img_path in charter.image_paths:
         img_str = str(img_path)

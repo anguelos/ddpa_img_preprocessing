@@ -39,11 +39,12 @@ class OtsuBinarizer(Binarizer):
 
 def main_binarize_offline():
     import fargv
+    import sys
     import tqdm
 
     p = {
         "images": set([]),
-        "method": ("otsu", "bunet"),
+        "method": [("otsu", "bunet"), "Binarization method to use one of [otsu, bunet]"],
         "verbose": False,
     }
     args, _ = fargv.fargv(p)
@@ -54,10 +55,12 @@ def main_binarize_offline():
 
     for img_path in tqdm.tqdm(args.images, disable=not args.verbose):
         img = Image.open(img_path)
+        if args.verbose:
+            print(f"Binarizing {img_path} ({img.size}) using {args.method} method...")
         bin_img = binarizer(img)
         # img_md5_sum.img.ext -> img_md5_sum.bin.png
         parts = img_path.split(".img.")
         out_path = parts[0] + ".bin.png"
         bin_img.save(out_path)
         if args.verbose:
-            print(f"{img_path} -> {out_path}")
+            print(f"{img_path} -> {out_path}", file=sys.stderr)

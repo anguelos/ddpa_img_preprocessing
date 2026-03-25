@@ -1,0 +1,72 @@
+{
+  "img_md5": "b02c4b20e456e3529b450464edacc6ae",
+  "user": "app:layout,git:('unknown', 'unknown'),weights:840be73cc226d53f3dc1343372ec7fef",
+  "class_names": [
+    "No Class",
+    "Ignore",
+    "Img:CalibrationCard",
+    "Img:Seal",
+    "Img:WritableArea",
+    "Wr:OldText",
+    "Wr:OldNote",
+    "Wr:NewText",
+    "Wr:NewOther",
+    "WrO:Ornament",
+    "WrO:Fold"
+  ],
+  "class_colors": [
+    "#646B63",
+    "#23282B",
+    "#763C28",
+    "#316650",
+    "#00BB2D",
+    "#287233",
+    "#231A24",
+    "#F5D033",
+    "#063971",
+    "#1E2460",
+    "#641C34"
+  ],
+  "image_wh": [
+    3000,
+    2117
+  ],
+  "rect_LTRB": [
+    [
+      2290.0,
+      1041.0,
+      2454.0,
+      1677.0
+    ],
+    [
+      66.0,
+      76.0,
+      2524.0,
+      1730.0
+    ],
+    [
+      1034.0,
+      1831.0,
+      1282.0,
+      2084.0
+    ],
+    [
+      2514.0,
+      29.0,
+      2956.0,
+      1511.0
+    ]
+  ],
+  "rect_captions": [
+    "$conf:0.6937739849090576",
+    "$conf:0.7459732294082642",
+    "$conf:0.887507975101471",
+    "$conf:0.9497747421264648"
+  ],
+  "rect_classes": [
+    7,
+    4,
+    3,
+    2
+  ]
+}

@@ -72,6 +72,11 @@ args, _ = fargv.fargv(p)
 # invoked as: ddp_binarize_offline img.jpg -method bunet -verbose
 ```
 
+## Output Convention
+- All user-facing messages (verbose output, warnings, errors) go to `sys.stderr`
+- `stdout` is reserved for data output only (e.g. piped results)
+- Always pass `file=sys.stderr` to `print()`
+
 ## torch_mentor Integration
 - ML functors inherit from `mentor.Mentee` (from `../torch_mentor`)
 - Heuristic functors are standalone (no torch dependency)
