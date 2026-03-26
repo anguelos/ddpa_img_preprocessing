@@ -16,6 +16,13 @@
    :undoc-members:
 ```
 
+```{eval-rst}
+.. automodule:: ddp_resolution.res_ds
+   :members:
+   :undoc-members:
+```
+
+
 ## ddp_recto
 
 ```{eval-rst}

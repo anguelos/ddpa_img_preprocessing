@@ -26,30 +26,19 @@ pip install -e ".[dev]"
 
 ```bash
 # Binarize images
-ddp_binarize_offline img_abc123.img.jpg img_def456.img.jpg
+ddp_binarize_offline -images ./test/fake_fsdb_root/*/*/*/*.img.* -method otsu -verbose
 
-# Estimate resolution
-ddp_resolution_offline img_abc123.img.jpg
+# Estimate resolution (calibration card heuristic)
+ddp_resolution_offline -images ./test/fake_fsdb_root/*/*/*/*.img.* -method layout -verbose
 
-# Select recto
-ddp_recto_offline /path/to/charter/dir
+# Estimate resolution (fixed size heuristic)
+ddp_resolution_offline -images ./test/fake_fsdb_root/*/*/*/*.img.* -method fixed_size -verbose
+
+# Select recto for charter directories
+ddp_recto_offline -charter_dir ./test/fake_fsdb_root/*/*/* -verbose
 
 # Full offline preprocessing of an FSDB
-ddp_cv_preprocess_offline /path/to/fsdb_root
-```
-
-## FSDB Structure
-
-```
-fsdb_root/
-  ARCHIVENAME/
-    <fond_md5>/
-      <charter_md5>/
-        CH.cei.xml
-        CH.url.txt
-        CH.atom_id.txt
-        image_urls.json
-        <img_md5>.img.<ext>
+ddp_cv_preprocess_offline -fsdb_root ./test/fake_fsdb_root -verbose
 ```
 
 ## License

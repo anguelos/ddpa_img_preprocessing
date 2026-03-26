@@ -11,7 +11,9 @@
       "Bash(find*)",
       "Bash(ls*)",
       "Bash(cat*)",
-      "Bash(python -m pytest test/unittest/ -q)"
+      "Bash(python -m pytest test/unittest/ -q)",
+      "Bash(ddp_res_offline --help)",
+      "Bash(ddp_res_evaluate --help)"
     ]
   }
 }

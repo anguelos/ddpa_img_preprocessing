@@ -3,14 +3,16 @@ import os
 import sys
 import tqdm
 
+from PIL import Image
+
 from ddp_cv_preprocess.fsdb import FSDBCharter, iter_fsdb
 from ddp_cv_preprocess.util import FSDBIntegrityException
 from ddp_binarize.binarize import OtsuBinarizer
-from ddp_resolution.resolution import HeuristicResolutionEstimator
+from ddp_resolution.resolution import CalibrationCardResolutionEstimator
 from ddp_recto.recto_verso import HeuristicRectoSelector
 
 
-def process_charter(charter, binarizer, resolution_estimator, recto_selector, args):
+def process_charter(charter, binarizer, resolution_estimator, recto_selector, args, failed_images):
     try:
         charter.validate()
     except FSDBIntegrityException as e:
@@ -24,13 +26,19 @@ def process_charter(charter, binarizer, resolution_estimator, recto_selector, ar
     for img_path in charter.image_paths:
         img_str = str(img_path)
         stem = img_path.name.split(".img.")[0]
+        try:
+            img = Image.open(img_str)
+            img.load()
+        except Exception as e:
+            failed_images.append((img_str, str(e)))
+            continue
 
         ppi, confidence = resolution_estimator(img_str)
-        json_path = charter.charter_dir / f"{stem}.resolution.json"
+        json_path = charter.charter_dir / f"{stem}.res.pred.json"
         with open(json_path, "w") as f:
             json.dump({"ppi": ppi, "confidence": confidence}, f)
 
-        bin_img = binarizer(img_str)
+        bin_img = binarizer(img)
         bin_path = charter.charter_dir / f"{stem}.bin.png"
         bin_img.save(str(bin_path))
 
@@ -53,10 +61,16 @@ def main_cv_preprocess_offline():
     }
     args, _ = fargv.fargv(p)
     binarizer = OtsuBinarizer()
-    resolution_estimator = HeuristicResolutionEstimator()
+    resolution_estimator = CalibrationCardResolutionEstimator()
     recto_selector = HeuristicRectoSelector()
 
+    failed_images = []
     for fsdb_root in args.fsdb_root:
         charters = list(iter_fsdb(fsdb_root))
         for charter in tqdm.tqdm(charters, disable=not args.verbose):
-            process_charter(charter, binarizer, resolution_estimator, recto_selector, args)
+            process_charter(charter, binarizer, resolution_estimator, recto_selector, args, failed_images)
+
+    if args.verbose and failed_images:
+        print(f"\nFailed images ({len(failed_images)}):", file=sys.stderr)
+        for path, err in failed_images:
+            print(f"  {path}: {err}", file=sys.stderr)

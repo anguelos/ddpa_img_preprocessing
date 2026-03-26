@@ -55,7 +55,7 @@ All parameters use a **single dash** (e.g. `-verbose`, `-method`, `-nosymlinks`)
 
 | fargv value | CLI type | Example |
 |---|---|---|
-| `set([default])` | positional, multi-value | `p = {"images": set([])}` → `script.py img1.jpg img2.jpg` |
+| `set([default])` | named, multi-value | `p = {"images": set([])}` → `script.py -images img1.jpg img2.jpg` |
 | `("default", "opt2", ...)` | choice (first = default) | `p = {"method": ("otsu", "bunet")}` → `-method bunet` |
 | `False` | boolean flag, default off | `p = {"verbose": False}` → `-verbose` to enable |
 | `True` | boolean flag, default on | `p = {"verbose": True}` → `-noverbose` to disable |
@@ -105,3 +105,26 @@ args, _ = fargv.fargv(p)
 - Import fix: ddp_recto.recto_verso uses `from ddp_cv_preprocess.util import FSDBIntegrityException`
 - Package install layout: `src/` layout with `package_dir={'':' src'}`
 - License: AGPL-3.0 (Affero Public License)
+## Layout File Schema (`.layout.pred.json` / `.layout.gt.json`)
+Produced by a YOLO object detector, one file per image.
+
+```json
+{
+  "img_md5": "<md5>",
+  "class_names": ["No Class", "Ignore", "Img:CalibrationCard", "Img:Seal",
+                  "Img:WritableArea", "Wr:OldText", "Wr:OldNote", "Wr:NewText",
+                  "Wr:NewOther", "WrO:Ornament", "WrO:Fold"],
+  "image_wh": [width, height],
+  "rect_LTRB": [[left, top, right, bottom], ...],
+  "rect_captions": ["$conf:0.82", ...],
+  "rect_classes": [4, 5, ...]
+}
+```
+
+Key class indices: `2`=CalibrationCard, `3`=Seal, `4`=WritableArea, `5`=OldText, `9`=Ornament
+
+## Real-world FSDB Notes
+- `image_urls.json` keys are typically `md5.ext` (without `.img.`) — the `.img.` infix variant is less common
+- Book scans may have 5+ images (consecutive pages), no dominant recto
+- Typical charters have 2 images: recto + verso
+- All images in `test/fake_fsdb_root/` except TESTARCH have layout predictions available

@@ -53,14 +53,24 @@ def main_binarize_offline():
     elif args.method == "bunet":
         raise NotImplementedError("bunet binarizer is not yet implemented")
 
+    failed_images = []
     for img_path in tqdm.tqdm(args.images, disable=not args.verbose):
-        img = Image.open(img_path)
-        if args.verbose:
-            print(f"Binarizing {img_path} ({img.size}) using {args.method} method...")
-        bin_img = binarizer(img)
-        # img_md5_sum.img.ext -> img_md5_sum.bin.png
-        parts = img_path.split(".img.")
-        out_path = parts[0] + ".bin.png"
-        bin_img.save(out_path)
-        if args.verbose:
-            print(f"{img_path} -> {out_path}", file=sys.stderr)
+        try:
+            img = Image.open(img_path)
+            img.load()
+            if args.verbose:
+                print(f"Binarizing {img_path} ({img.size}) using {args.method} method...", file=sys.stderr)
+            bin_img = binarizer(img)
+            # img_md5_sum.img.ext -> img_md5_sum.bin.png
+            parts = img_path.split(".img.")
+            out_path = parts[0] + ".bin.png"
+            bin_img.save(out_path)
+            if args.verbose:
+                print(f"{img_path} -> {out_path}", file=sys.stderr)
+        except Exception as e:
+            failed_images.append((img_path, str(e)))
+
+    if args.verbose and failed_images:
+        print(f"\nFailed images ({len(failed_images)}):", file=sys.stderr)
+        for path, err in failed_images:
+            print(f"  {path}: {err}", file=sys.stderr)

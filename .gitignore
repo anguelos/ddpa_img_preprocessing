@@ -58,3 +58,7 @@ CH.recto.*
 
 # Ruff
 .ruff_cache/
+
+# sample_data — used for curation, contents ignored
+sample_data/*
+!sample_data/.gitkeep

@@ -14,7 +14,7 @@ pip install -e ".[dev]"
 ddp_cv_preprocess_offline /path/to/your/fsdb_root
 ```
 
-This processes all charters in the FSDB, computing:
+This processes all charters in the FSDB (see {doc}`fsdb`) computing:
 - Binarization (`<img_md5>.bin.png`)
 - Resolution estimate (`<img_md5>.resolution.json`)
 - Recto symlink (`CH.recto.<ext>`)
@@ -24,21 +24,21 @@ This processes all charters in the FSDB, computing:
 ### Binarize a single image
 
 ```bash
-ddp_binarize_offline myimage.img.jpg
-# produces myimage.bin.png
+ddp_binarize_offline -images ./test/fake_fsdb_root/*/*/*/*.img.* -method otsu -verbose
+# produces <img_md5>.bin.png alongside each input image
 ```
 
 ### Estimate resolution
 
 ```bash
-ddp_resolution_offline myimage.img.jpg
-# produces myimage.resolution.json
+ddp_res_offline -images ./test/fake_fsdb_root/*/*/*/*.img.* -method layout -verbose
+# produces <img_md5>.resolution.json alongside each input image
 ```
 
 ### Select recto for a charter
 
 ```bash
-ddp_recto_offline /path/to/charter/directory
+ddp_recto_offline -charter_dir ./test/fake_fsdb_root/*/*/* -verbose
 ```
 
 ## Running tests

@@ -7,6 +7,8 @@ from glob import glob
 from pathlib import Path
 from typing import List, Tuple
 
+from PIL import Image
+
 from ddp_cv_preprocess.util import FSDBIntegrityException
 
 
@@ -51,6 +53,7 @@ def main_recto_verso_offline():
     }
     args, _ = fargv.fargv(p)
     selector = HeuristicRectoSelector()
+    failed_images = []
     for charter in tqdm.tqdm(args.charter_dir, disable=not args.verbose):
         try:
             ranked = selector(charter)
@@ -60,7 +63,23 @@ def main_recto_verso_offline():
         if not ranked:
             print(f"No images found in {charter}", file=sys.stderr)
             continue
-        best_path, best_prob = ranked[0]
+
+        # Filter out corrupt images
+        clean_ranked = []
+        for img_name, prob in ranked:
+            img_full = os.path.join(charter, img_name)
+            try:
+                Image.open(img_full).load()
+                clean_ranked.append((img_name, prob))
+            except Exception as e:
+                failed_images.append((img_full, str(e)))
+
+        if not clean_ranked:
+            if args.verbose:
+                print(f"No loadable images in {charter}", file=sys.stderr)
+            continue
+
+        best_path, best_prob = clean_ranked[0]
         if best_prob < args.min_recto_prob:
             print(f"Warning: low confidence ({best_prob:.2f}) for {charter}", file=sys.stderr)
         if not args.nosymlinks and best_prob >= args.min_recto_prob:
@@ -68,3 +87,8 @@ def main_recto_verso_offline():
             symlink_path = os.path.join(charter, f"CH.recto.{ext}")
             if not os.path.exists(symlink_path):
                 os.symlink(best_path, symlink_path)
+
+    if args.verbose and failed_images:
+        print(f"\nFailed images ({len(failed_images)}):", file=sys.stderr)
+        for path, err in failed_images:
+            print(f"  {path}: {err}", file=sys.stderr)

@@ -8,6 +8,8 @@ Preprocessing pipeline for medieval charter images stored in a Filesystem Databa
 
 quickstart
 cli
+fsdb
+ddp_resolution
 api
 ```
 
