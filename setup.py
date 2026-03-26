@@ -25,11 +25,15 @@ setup(
         "dev": [
             "pytest>=7.0",
             "pytest-cov>=4.0",
-            "sphinx>=6.0",
-            "myst-parser>=1.0",
-            "sphinx-rtd-theme>=1.2",
             "ruff>=0.1",
-        ]
+        ],
+        "docs": [
+            "sphinx>=7.0",
+            "sphinx-rtd-theme>=1.3",
+            "myst-parser>=2.0",
+            "sphinx-copybutton>=0.5",
+            "sphinx-design>=0.5",
+        ],
     },
     entry_points={
         "console_scripts": [

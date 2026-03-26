@@ -1,28 +1,110 @@
+"""Sphinx configuration for DDPA Image Preprocessing documentation."""
+
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../src'))
 
-project = 'DDPA Image Preprocessing'
-copyright = '2024, anguelos'
-author = 'anguelos'
-release = '0.1.0'
+sys.path.insert(0, os.path.abspath("../src"))
+
+project = "DDPA Image Preprocessing"
+copyright = "2024, anguelos"
+author = "anguelos"
+release = "0.1.0"
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
-    'myst_parser',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.linkcode",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.doctest",
+    "myst_parser",
+    "sphinx_copybutton",
+    "sphinx_design",
 ]
 
-html_theme = 'sphinx_rtd_theme'
-source_suffix = ['.rst', '.md']
-master_doc = 'index'
-exclude_patterns = ['_build']
+myst_enable_extensions = ["colon_fence", "deflist"]
 
-myst_enable_extensions = [
-    'colon_fence',
-    'deflist',
-]
+# ---------------------------------------------------------------------------
+# intersphinx
+# ---------------------------------------------------------------------------
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "torch": ("https://pytorch.org/docs/stable", None),
+    "PIL": ("https://pillow.readthedocs.io/en/stable", None),
+}
 
-html_show_sourcelink = True
-autodoc_member_order = 'bysource'
+# ---------------------------------------------------------------------------
+# autodoc / autosummary
+# ---------------------------------------------------------------------------
+autosummary_generate = True
+autodoc_member_order = "bysource"
+autodoc_typehints = "description"
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": False,
+    "show-inheritance": True,
+}
+
+# ---------------------------------------------------------------------------
+# napoleon (numpy docstrings)
+# ---------------------------------------------------------------------------
+napoleon_numpy_docstring = True
+napoleon_google_docstring = False
+
+# ---------------------------------------------------------------------------
+# linkcode — point [source] links to GitHub
+# ---------------------------------------------------------------------------
+_GITHUB_ROOT = "https://github.com/anguelos/ddpa_img_preprocessing/blob/main"
+
+
+def linkcode_resolve(domain, info):
+    """Map a Python object to its GitHub source URL."""
+    if domain != "py" or not info["module"]:
+        return None
+    import importlib
+    import inspect
+
+    try:
+        mod = importlib.import_module(info["module"])
+    except ImportError:
+        return None
+
+    obj = mod
+    for part in (info.get("fullname") or "").split("."):
+        try:
+            obj = getattr(obj, part)
+        except AttributeError:
+            return None
+
+    obj = inspect.unwrap(obj)
+
+    try:
+        src_file = inspect.getfile(obj)
+        lines, start = inspect.getsourcelines(obj)
+    except (TypeError, OSError):
+        return None
+
+    try:
+        rel = os.path.relpath(src_file, os.path.join(os.path.dirname(__file__), ".."))
+    except ValueError:
+        return None
+
+    end = start + len(lines) - 1
+    return f"{_GITHUB_ROOT}/{rel}#L{start}-L{end}"
+
+
+# ---------------------------------------------------------------------------
+# copybutton
+# ---------------------------------------------------------------------------
+copybutton_prompt_text = r">>> |\.\.\. |\$ "
+copybutton_prompt_is_regexp = True
+
+# ---------------------------------------------------------------------------
+# HTML output
+# ---------------------------------------------------------------------------
+source_suffix = [".rst", ".md"]
+master_doc = "index"
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+html_theme = "sphinx_rtd_theme"
+html_static_path = ["_static"]
