@@ -190,7 +190,7 @@ class ResDs(Dataset):
         return_image_layout: bool = False,
         input_transform: Optional[Callable] = None,
         dominant_area_ratio: Optional[float] = None,
-        check_images: bool = False,
+        check_images: bool = True,
     ) -> None:
         assert image_crop in self.CROP_CLASSES, (
             f"image_crop must be one of {self.CROP_CLASSES}"
@@ -217,7 +217,7 @@ class ResDs(Dataset):
         return_image_layout: bool = False,
         input_transform: Optional[Callable] = None,
         dominant_area_ratio: Optional[float] = None,
-        check_images: bool = False,
+        check_images: bool = True,
     ) -> "ResDs":
         """Construct a :class:`ResDs` by globbing for GT files under a root directory.
 
@@ -589,6 +589,10 @@ class ResDs(Dataset):
 def make_train_transform(
     patch_size: Optional[int] = None,
     jitter_strength: float = 0.3,
+    max_rotation: float = 5.0,
+    blur_p: float = 0.3,
+    grayscale_p: float = 0.1,
+    erasing_p: float = 0.2,
 ) -> tv_transforms.Compose:
     """Build a training image transform pipeline.
 
@@ -599,8 +603,25 @@ def make_train_transform(
         square size is inserted (with padding when the image is smaller).
     jitter_strength : float, optional
         Magnitude passed to
-        :class:`~torchvision.transforms.ColorJitter` for both brightness
-        and contrast.  Default is ``0.3``.
+        :class:`~torchvision.transforms.ColorJitter` for brightness,
+        contrast, and saturation.  Default is ``0.3``.
+    max_rotation : float, optional
+        Maximum rotation angle in degrees for
+        :class:`~torchvision.transforms.RandomRotation`.  Small values
+        (default ``5.0``) simulate slight scanner tilt without distorting
+        resolution cues.
+    blur_p : float, optional
+        Probability of applying
+        :class:`~torchvision.transforms.GaussianBlur` to simulate
+        focus variation.  Default is ``0.3``.
+    grayscale_p : float, optional
+        Probability of converting to greyscale (channels kept at 3).
+        Helps when parchment/ink colours vary wildly across archives.
+        Default is ``0.1``.
+    erasing_p : float, optional
+        Probability of :class:`~torchvision.transforms.RandomErasing`
+        after tensorisation.  Simulates damage, stamps, and occlusions.
+        Default is ``0.2``.
 
     Returns
     -------
@@ -618,13 +639,21 @@ def make_train_transform(
     ops: List[Any] = [
         tv_transforms.RandomHorizontalFlip(),
         tv_transforms.RandomVerticalFlip(),
-        tv_transforms.ColorJitter(brightness=jitter_strength, contrast=jitter_strength),
+        tv_transforms.RandomRotation(degrees=max_rotation),
+        tv_transforms.ColorJitter(
+            brightness=jitter_strength,
+            contrast=jitter_strength,
+            saturation=jitter_strength,
+        ),
+        tv_transforms.RandomGrayscale(p=grayscale_p),
+        tv_transforms.RandomApply([tv_transforms.GaussianBlur(kernel_size=5)], p=blur_p),
     ]
     if patch_size is not None:
         ops.append(tv_transforms.RandomCrop(patch_size, pad_if_needed=True))
     ops += [
         tv_transforms.ToTensor(),
         tv_transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+        tv_transforms.RandomErasing(p=erasing_p),
     ]
     return tv_transforms.Compose(ops)
 

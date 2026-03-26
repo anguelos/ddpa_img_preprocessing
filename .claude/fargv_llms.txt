@@ -1,0 +1,72 @@
+# fargv — LLM Reference
+
+fargv is a minimal CLI argument parser for Python scripts. Arguments are
+declared as a plain dict; the same dict doubles as documentation and
+default values. No argparse boilerplate is needed.
+
+## Core pattern
+
+```python
+import fargv
+
+p = {
+    "name": "world",          # str
+    "count": 3,               # int
+    "ratio": 0.5,             # float
+    "verbose": False,         # bool (flag, no value needed on CLI)
+    "mode": ("a", "b", "c"),  # choice — first element is the default
+    "files": set([]),         # positional set — receives remaining args / globs
+}
+args, _ = fargv.fargv(p)
+# args.name, args.count, args.ratio, args.verbose, args.mode, args.files
+```
+
+## Type rules
+
+| Python default type | CLI syntax | Notes |
+|---|---|---|
+| `str`     | `name=hello`           | No quotes needed |
+| `int`     | `count=10`             | |
+| `float`   | `ratio=0.1`            | |
+| `bool`    | `verbose` or `verbose=True` | Bare flag flips to True |
+| `tuple`   | `mode=b`               | First element is default; must be one of the tuple values |
+| `set([])` | `files=a.txt,b.txt` or bare positionals | Comma-separated or space-separated; works with shell globs |
+
+## Descriptions
+
+Wrap any value in a two-element list `[value, "description string"]` to
+attach help text:
+
+```python
+p = {
+    "lr": [1e-3, "Learning rate for the optimiser"],
+    "method": [("sgd", "adam"), "Optimiser to use"],
+}
+```
+
+## Environment variables
+
+By default fargv also reads environment variables whose names match the
+parameter keys (upper-case). Disable with `use_enviromental_variables=False`.
+
+## Calling convention
+
+```
+python myscript.py name=Alice count=5 verbose file1.txt file2.txt
+```
+
+`spaces_are_equals=True` (default) means `name Alice` also works.
+
+## Multiple entry-points sharing parameters
+
+Define `p` at module level and call `fargv.fargv(p)` inside the entry-point
+function. This keeps defaults readable and allows the same dict to be
+imported in tests.
+
+## What fargv does NOT do
+
+- No subcommands.
+- No mutually exclusive groups.
+- No required arguments (every parameter has a default).
+- No automatic type coercion beyond the rules above; for complex types
+  use a str and parse manually.

@@ -34,10 +34,12 @@ setup(
     entry_points={
         "console_scripts": [
             "ddp_binarize_offline=ddp_binarize.binarize:main_binarize_offline",
-            "ddp_res_offline=ddp_resolution.resolution:main_resolution_offline",
+            
             "ddp_recto_offline=ddp_recto.recto_verso:main_recto_verso_offline",
             "ddp_cv_preprocess_offline=ddp_cv_preprocess.offline:main_cv_preprocess_offline",
+            "ddp_res_offline=ddp_resolution.resolution:main_resolution_offline",
             "ddp_res_evaluate=ddp_resolution.res_ds:main_res_evaluate",
+            "ddp_res_train=ddp_resolution.resresnet:main_res_train",
         ]
     },
 )

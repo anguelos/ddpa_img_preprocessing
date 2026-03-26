@@ -1,0 +1,136 @@
+# torch_mentor — LLM Reference
+
+torch_mentor provides the `Mentee` base class, a `torch.nn.Module` subclass
+that adds a full training loop, checkpointing, layer freezing, and inference
+state management. Import as `import mentor as mtr` or `import torch_mentor as mtr`.
+
+## Minimal subclass
+
+```python
+import mentor as mtr
+import torch, torch.nn.functional as F
+
+class MyModel(mtr.Mentee):
+    def __init__(self, num_classes: int = 10) -> None:
+        super().__init__()
+        self.fc = torch.nn.Linear(512, num_classes)
+
+    def forward(self, x):
+        return self.fc(x)
+
+    def training_step(self, sample, loss_fn=None):
+        x, y = sample
+        logits = self(x.to(self.device))
+        loss = F.cross_entropy(logits, y.to(self.device))
+        return loss, {"loss": loss.item()}
+```
+
+`training_step` must return `(loss_tensor, metrics_dict)`.
+The **first key** of `metrics_dict` is the principal metric used for
+best-model tracking during `validate_epoch`.
+
+## Training workflow
+
+```python
+model = MyModel()
+model.to("cuda")
+
+train_objs = model.create_train_objects(lr=1e-3, step_size=10, gamma=0.1)
+optimizer    = train_objs["optimizer"]     # Adam by default
+lr_scheduler = train_objs["lr_scheduler"] # StepLR by default
+
+while model.current_epoch < target_epochs:
+    train_metrics = model.train_epoch(
+        train_dataset,
+        optimizer,
+        lr_scheduler=lr_scheduler,
+        pseudo_batch_size=32,   # gradient accumulation steps
+        num_workers=4,
+        verbose=True,
+    )
+    val_metrics = model.validate_epoch(val_dataset, num_workers=4)
+    model.save("checkpoint.pt", optimizer=optimizer, lr_scheduler=lr_scheduler)
+```
+
+`model.current_epoch` increments after each `train_epoch` call.
+`model.save` is safe to call every epoch; it overwrites the same file.
+
+## Resuming training
+
+```python
+import os
+if os.path.isfile("checkpoint.pt"):
+    model, optimizer, lr_scheduler = MyModel.resume_training(
+        "checkpoint.pt", device="cuda", lr=1e-3, step_size=10, gamma=0.1
+    )
+else:
+    model = MyModel()
+    ...
+```
+
+`resume_training` restores weights, epoch counter, and optimizer/scheduler
+state. `current_epoch` reflects how many epochs have been completed, so the
+`while model.current_epoch < target_epochs` loop resumes correctly.
+
+## Inference-only loading
+
+```python
+model = MyModel.resume("checkpoint.pt")
+model.eval()
+with torch.no_grad():
+    output = model(x)
+```
+
+## Optional methods
+
+| Method | When to override |
+|---|---|
+| `validation_step(sample, loss_fn)` | When validation differs from training (e.g. no augmentation, TTA). Default delegates to `training_step`. |
+| `preprocess(raw_input)` | To make checkpoints self-contained; called by inference pipelines. |
+| `decode(model_output)` | To convert raw tensor output to human-readable result. |
+| `get_output_schema()` | Return dict describing the output space; stored in checkpoint. |
+| `get_preprocessing_info()` | Return dict describing normalisation stats; stored in checkpoint. |
+
+## Layer freezing
+
+```python
+model.freeze("layer1", "layer2")      # freeze by module name prefix
+model.unfreeze("layer1")              # unfreeze specific layers
+model.unfreeze()                      # unfreeze everything
+```
+
+Frozen state is preserved across `save`/`resume` cycles.
+Use `model.layer_names` to inspect available module paths.
+
+## Inference state
+
+Attach arbitrary picklable objects to a checkpoint (label encoders,
+normalisation statistics, vocabularies):
+
+```python
+model.register_inference_state("classes", ["cat", "dog"])
+# ... later, after resume:
+classes = model.get_inference_state("classes")
+```
+
+## Key properties
+
+| Property | Type | Description |
+|---|---|---|
+| `model.current_epoch` | `int` | Number of completed training epochs |
+| `model.device` | `torch.device` | Device of model parameters |
+| `model.layer_names` | `List[str]` | Dotted paths of all parameter-bearing modules |
+
+## Gradient accumulation
+
+`pseudo_batch_size` in `train_epoch` controls how many samples are
+accumulated before `optimizer.step()`. Set it to the effective batch size
+you want; the DataLoader can use `batch_size=1`.
+
+## What torch_mentor does NOT do
+
+- Does not provide the optimizer or scheduler type choices beyond Adam + StepLR;
+  pass custom objects directly to `train_epoch` if needed.
+- Does not handle multi-GPU / DDP automatically.
+- Does not compute the loss itself; `training_step` in the subclass is
+  always responsible for the loss.
