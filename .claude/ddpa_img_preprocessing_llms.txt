@@ -1,0 +1,165 @@
+# ddpa_img_preprocessing — LLM Reference
+
+Preprocessing and ML pipeline for digitised medieval charter images stored
+in an FSDB (File-System DataBase) archive.
+
+## FSDB directory structure
+
+```
+<root>/
+  <archive_id>/               e.g. AT-HHStA
+    <fond_md5>/
+      <charter_md5>/          one directory per charter
+        <img_md5>.img.jpg     scanned image (extension varies: jpg, png, tif…)
+        <img_md5>.layout.pred.json   layout prediction (class boxes)
+        <img_md5>.layout.gt.json     layout ground-truth (when available)
+        <img_md5>.res.gt.json        resolution ground-truth
+        <img_md5>.res.pred_layout.json     resolution prediction (layout method)
+        <img_md5>.res.pred_layoutgt.json   resolution prediction (GT layout)
+        <img_md5>.res.pred_fixed.json      resolution prediction (fixed-size)
+        <img_md5>.res.pred_resresnet.json  resolution prediction (ResResNet)
+        CH.url.txt            monasterium.net URL
+        CH.cei.xml            CEI XML transcription
+        CH.atom_id.txt        Atom ID
+        image_urls.json       source image download URLs
+```
+
+All per-image sidecar files share the `<img_md5>` stem and are separated by
+`.` from their role suffix. The pattern `<stem>.img.<ext>` identifies images.
+
+## Layout JSON format
+
+```json
+{
+  "class_names": ["No Class", "Img:CalibrationCard", "Img:WritableArea", ...],
+  "image_wh": [width, height],
+  "rect_LTRB": [[L, T, R, B], ...],
+  "rect_classes": [0, 2, ...]
+}
+```
+
+## Resolution GT JSON format
+
+```json
+{
+  "class_names": ["5cm", "1cm", "5in", "1in", "Undefined"],
+  "rect_LTRB": [[L, T, R, B], ...],
+  "rect_classes": [0, ...],
+  "image_wh": [width, height]
+}
+```
+
+## Resolution prediction JSON format
+
+```json
+{"ppi": 312.4, "confidence": 0.85}
+```
+
+## CLI tools
+
+### ddp_res_offline — run resolution estimation on images
+
+```
+ddp_res_offline \
+  method=layout \          # layout | layoutgt | fixed_size | resresnet
+  images=path/*.img.jpg \  # set of image paths (glob-expanded)
+  verbose=True
+```
+
+Output files are written next to each image with a method-specific suffix
+(e.g. `.res.pred_layout.json`). Override with `out_ext=.custom.json`.
+
+### ddp_res_evaluate — evaluate predictions against GT
+
+```
+ddp_res_evaluate \
+  fsdb_root=/data/archive \
+  pred_exts=.res.pred_layout.json,.res.pred_fixed.json \
+  plot=True
+```
+
+Prints a table with: n_total, n_predicted, coverage, mean_gt_ppi,
+gt_ppi_std, gt_ppi_var, mae, mape, rmse, median_ae, r2, log2_mae, log2_rmse.
+`r2 = 1 − MSE/Var(GT)`: 1=perfect, 0=no better than predicting the mean.
+
+### ddp_res_train — train ResResNet
+
+```
+ddp_res_train \
+  fsdb_root=/data/archive \
+  epochs=50 \
+  resume=./checkpoints/resresnet.pt \
+  device=cuda \
+  verbose=True
+```
+
+If `resume` exists, training is resumed from that checkpoint; otherwise a
+new model is initialised. The checkpoint is overwritten after every epoch.
+`epochs` is the **target** final epoch, not the number of epochs to run.
+
+## ResDs dataset
+
+```python
+from ddp_resolution.res_ds import ResDs, make_train_transform, make_inference_transform
+
+ds = ResDs.from_root(
+    "/data/archive",
+    "**/*.res.gt.json",
+    image_crop="img",           # "img" | "Img:WritableArea" | "Wr:OldText"
+    check_images=True,          # drop truncated images at load time (default)
+)
+train_ds, val_ds = ds.random_split(0.8, seed=42)
+train_ds.input_transform = make_train_transform(patch_size=512)
+val_ds.input_transform   = make_inference_transform(patch_size=512)
+
+img, ppi = train_ds[0]          # (Tensor, float)
+metrics = ds.evaluate(".res.pred_layout.json")
+```
+
+`image_crop != "img"` requires `.layout.pred.json` to exist alongside each image.
+`check_images=True` (default) drops samples whose image file cannot be fully decoded.
+
+## Resolution estimators
+
+```python
+from ddp_resolution.resolution import (
+    CalibrationCardResolutionEstimator,
+    FixedSizeResolutionEstimator,
+)
+
+# Uses Img:CalibrationCard boxes from layout prediction
+est = CalibrationCardResolutionEstimator(use_gt_layout=False)
+result = est("/data/charter/abc.img.jpg")  # (ppi, confidence) or None
+
+# Assumes fixed physical charter size
+est = FixedSizeResolutionEstimator()
+result = est(pil_image)                    # always returns (ppi, 0.2)
+```
+
+`CalibrationCardResolutionEstimator` returns `None` when no layout file or
+no `Img:CalibrationCard` is found; the caller must handle this case.
+
+## ResResNet model
+
+```python
+from ddp_resolution.resresnet import ResResNet
+
+model = ResResNet(pretrained=True)
+# forward input:  (N, 3, H, W) normalised tensor
+# forward output: (N, 1) log2(ppi)
+ppi = 2 ** model(img_tensor).item()
+```
+
+The model predicts `log2(ppi)` to keep the loss scale-invariant.
+Huber loss is used in `training_step`; metrics reported are
+`log2_ppi_mae` (principal, used for best-model tracking) and `ppi_mae`.
+
+## Package layout
+
+```
+src/
+  ddp_resolution/    resolution estimation + ResDs + ResResNet
+  ddp_binarize/      document binarisation
+  ddp_recto/         recto/verso classification
+  ddp_cv_preprocess/ FSDB access utilities and preprocessing pipeline
+```
