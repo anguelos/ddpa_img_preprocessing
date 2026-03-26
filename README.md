@@ -1,5 +1,14 @@
 # DDPA Image Preprocessing
 
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
+[![Read the Docs](https://img.shields.io/readthedocs/ddpa-img-preprocessing)](https://ddpa-img-preprocessing.readthedocs.io)
+[![GitHub repo size](https://img.shields.io/github/repo-size/anguelos/ddpa_img_preprocessing)](https://github.com/anguelos/ddpa_img_preprocessing)
+[![GitHub last commit](https://img.shields.io/github/last-commit/anguelos/ddpa_img_preprocessing)](https://github.com/anguelos/ddpa_img_preprocessing/commits/main)
+[![PyPI downloads](https://img.shields.io/pypi/dm/ddpa-img-preprocessing)](https://pypi.org/project/ddpa-img-preprocessing/)
+[![Tests](https://img.shields.io/github/actions/workflow/status/anguelos/ddpa_img_preprocessing/tests.yml?label=tests)](https://github.com/anguelos/ddpa_img_preprocessing/actions)
+
 Preprocessing pipeline for medieval charter images stored in a Filesystem Database (FSDB).
 
 ## Overview
