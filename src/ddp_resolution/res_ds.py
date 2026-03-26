@@ -588,40 +588,40 @@ class ResDs(Dataset):
 
 def make_train_transform(
     patch_size: Optional[int] = None,
-    jitter_strength: float = 0.3,
-    max_rotation: float = 5.0,
-    blur_p: float = 0.3,
-    grayscale_p: float = 0.1,
-    erasing_p: float = 0.2,
+    jitter_strength: float = 0.0,
+    max_rotation: float = 0.0,
+    blur_p: float = 0.0,
+    grayscale_p: float = 0.0,
+    erasing_p: float = 0.0,
 ) -> tv_transforms.Compose:
     """Build a training image transform pipeline.
+
+    All augmentation parameters default to ``0.0`` / ``0`` which means the
+    augmentation is not applied.  Pass non-zero values to enable each one
+    independently.
 
     Parameters
     ----------
     patch_size : int, optional
         If given, a :class:`~torchvision.transforms.RandomCrop` to this
         square size is inserted (with padding when the image is smaller).
+        ``None`` (default) skips cropping.
     jitter_strength : float, optional
-        Magnitude passed to
-        :class:`~torchvision.transforms.ColorJitter` for brightness,
-        contrast, and saturation.  Default is ``0.3``.
+        Magnitude for :class:`~torchvision.transforms.ColorJitter`
+        (brightness, contrast, saturation).  ``0.0`` disables jitter.
     max_rotation : float, optional
         Maximum rotation angle in degrees for
-        :class:`~torchvision.transforms.RandomRotation`.  Small values
-        (default ``5.0``) simulate slight scanner tilt without distorting
-        resolution cues.
+        :class:`~torchvision.transforms.RandomRotation`.  ``0.0`` disables
+        rotation.
     blur_p : float, optional
-        Probability of applying
-        :class:`~torchvision.transforms.GaussianBlur` to simulate
-        focus variation.  Default is ``0.3``.
+        Probability of :class:`~torchvision.transforms.GaussianBlur`.
+        ``0.0`` disables blurring.
     grayscale_p : float, optional
-        Probability of converting to greyscale (channels kept at 3).
-        Helps when parchment/ink colours vary wildly across archives.
-        Default is ``0.1``.
+        Probability of :class:`~torchvision.transforms.RandomGrayscale`
+        (channels kept at 3).  ``0.0`` disables greyscale conversion.
     erasing_p : float, optional
         Probability of :class:`~torchvision.transforms.RandomErasing`
-        after tensorisation.  Simulates damage, stamps, and occlusions.
-        Default is ``0.2``.
+        applied after tensorisation.  ``0.0`` disables erasing.
 
     Returns
     -------
@@ -639,22 +639,27 @@ def make_train_transform(
     ops: List[Any] = [
         tv_transforms.RandomHorizontalFlip(),
         tv_transforms.RandomVerticalFlip(),
-        tv_transforms.RandomRotation(degrees=max_rotation),
-        tv_transforms.ColorJitter(
+    ]
+    if max_rotation > 0.0:
+        ops.append(tv_transforms.RandomRotation(degrees=max_rotation))
+    if jitter_strength > 0.0:
+        ops.append(tv_transforms.ColorJitter(
             brightness=jitter_strength,
             contrast=jitter_strength,
             saturation=jitter_strength,
-        ),
-        tv_transforms.RandomGrayscale(p=grayscale_p),
-        tv_transforms.RandomApply([tv_transforms.GaussianBlur(kernel_size=5)], p=blur_p),
-    ]
+        ))
+    if grayscale_p > 0.0:
+        ops.append(tv_transforms.RandomGrayscale(p=grayscale_p))
+    if blur_p > 0.0:
+        ops.append(tv_transforms.RandomApply([tv_transforms.GaussianBlur(kernel_size=5)], p=blur_p))
     if patch_size is not None:
         ops.append(tv_transforms.RandomCrop(patch_size, pad_if_needed=True))
     ops += [
         tv_transforms.ToTensor(),
         tv_transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
-        tv_transforms.RandomErasing(p=erasing_p),
     ]
+    if erasing_p > 0.0:
+        ops.append(tv_transforms.RandomErasing(p=erasing_p))
     return tv_transforms.Compose(ops)
 
 

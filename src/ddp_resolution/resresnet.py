@@ -5,13 +5,14 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 from torch import Tensor
 import torchvision as tv
 
 import mentor as mtr
 
-
-class ResResNet(mtr.Mentee):
+@mtr.make_mentee(trainer=mtr.Regressor)
+class ResResNet(nn.Module):
     """ResNet-18 backbone for scan-resolution (PPI) regression.
 
     The standard ResNet-18 classification head is replaced with a single
@@ -233,6 +234,7 @@ def main_res_train() -> None:
     the best checkpoint to *out_model*.
     """
     import sys
+    import os
     import fargv
     from ddp_resolution.res_ds import ResDs, make_train_transform, make_inference_transform
 
@@ -241,6 +243,8 @@ def main_res_train() -> None:
         "gt_glob": "**/*.res.gt.json",
         "image_crop": ("img", "Img:WritableArea", "Wr:OldText"),
         "patch_size": 512,
+        "augmentation": ("modest", "no", "low", "intense"),
+        "freeze_resnet": False,
         "val_ratio": 0.2,
         "seed": 42,
         "epochs": 30,
@@ -257,46 +261,37 @@ def main_res_train() -> None:
     }
     args, _ = fargv.fargv(p)
 
-    import os
-    resume_exists = os.path.isfile(args.resume)
-
     # --- dataset ---------------------------------------------------------
     ds = ResDs.from_root(
         args.fsdb_root,
         args.gt_glob,
         image_crop=args.image_crop,
     )
-    train_ds, val_ds = ds.random_split(1.0 - args.val_ratio, seed=args.seed)
-    train_ds.input_transform = make_train_transform(patch_size=args.patch_size)
+    val_ds, train_ds = ds.random_split(args.val_ratio, seed=args.seed)
+    _AUG_PARAMS = {
+        "no":      dict(jitter_strength=0.0, max_rotation=0.0, blur_p=0.0, grayscale_p=0.0,  erasing_p=0.0),
+        "low":     dict(jitter_strength=0.1, max_rotation=1.5, blur_p=0.1, grayscale_p=0.02, erasing_p=0.05),
+        "modest":  dict(jitter_strength=0.2, max_rotation=3.0, blur_p=0.2, grayscale_p=0.05, erasing_p=0.1),
+        "intense": dict(jitter_strength=0.4, max_rotation=8.0, blur_p=0.4, grayscale_p=0.15, erasing_p=0.3),
+    }
+    train_ds.input_transform = make_train_transform(patch_size=args.patch_size, **_AUG_PARAMS[args.augmentation])
     val_ds.input_transform = make_inference_transform(patch_size=args.patch_size)
 
     if args.verbose:
         print(f"Train: {len(train_ds)}  Val: {len(val_ds)}", file=sys.stderr)
 
     # --- model -----------------------------------------------------------
-    if resume_exists:
-        model, optimizer, lr_scheduler = ResResNet.resume_training(
-            args.resume,
-            device=args.device,
-            lr=args.lr,
-            step_size=args.step_size,
-            gamma=args.gamma,
-        )
-        if args.verbose:
-            print(f"Resumed from {args.resume} at epoch {model.current_epoch}", file=sys.stderr)
-    else:
-        model = ResResNet(pretrained=args.pretrained)
-        model.to(torch.device(args.device))
-        train_objs = model.create_train_objects(
-            lr=args.lr,
-            step_size=args.step_size,
-            gamma=args.gamma,
-        )
-        optimizer = train_objs["optimizer"]
-        lr_scheduler = train_objs["lr_scheduler"]
+    os.makedirs(os.path.dirname(os.path.abspath(args.resume)), exist_ok=True)
+    model, optimizer, lr_scheduler = ResResNet.resume_training(
+        args.resume,
+        device=args.device, lr=args.lr, step_size=args.step_size, gamma=args.gamma)
+    if args.verbose:
+        print(f"Resumed from {args.resume} at epoch {model.current_epoch}", file=sys.stderr)
+    optimizer = model.trainer.optimizer
+    lr_scheduler = model.trainer.lr_scheduler
 
     # --- training loop ---------------------------------------------------
-    os.makedirs(os.path.dirname(os.path.abspath(args.resume)), exist_ok=True)
+    
     while model.current_epoch < args.epochs:
         train_metrics = model.train_epoch(
             train_ds,
